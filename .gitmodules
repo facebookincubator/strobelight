@@ -1,0 +1,12 @@
+[submodule "blazesym"]
+	path = blazesym
+	url = https://github.com/libbpf/blazesym.git
+[submodule "libbpf"]
+	path = libbpf
+	url = https://github.com/libbpf/libbpf.git
+[submodule "fmt"]
+	path = fmt
+	url = https://github.com/fmtlib/fmt.git
+[submodule "folly"]
+	path = folly
+	url = https://github.com/facebook/folly.git
