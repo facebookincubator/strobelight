@@ -7,7 +7,7 @@
 #include <bpf/libbpf.h>
 #include <fmt/core.h>
 #include <folly/ScopeGuard.h>
-#include <stdio.h>
+#include <cstdio>
 #include <set>
 #include <vector>
 

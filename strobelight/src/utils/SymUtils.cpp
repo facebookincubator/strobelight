@@ -55,7 +55,7 @@ std::vector<std::pair<std::string, size_t>> SymUtils::findSymbolOffsets(
     }
     bool symbolFound = findSymbolOffsetInFile(elf, symbolName, offset);
     if (symbolFound) {
-      uprobesToAttach.push_back(std::make_pair(path, offset));
+      uprobesToAttach.emplace_back(path, offset);
       fmt::print(
           "Found CUDA kernel launch symbol at offset [0x{:x}] in {}\n",
           offset,
@@ -88,7 +88,7 @@ std::vector<std::pair<std::string, size_t>> SymUtils::findSymbolOffsets(
         mapping.name,
         offset);
 
-    uprobesToAttach.push_back(std::make_pair(mapping.name, offset));
+    uprobesToAttach.emplace_back(mapping.name, offset);
     if (exitOnFirstMatch) {
       break;
     }

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <stdio.h>
+#include <cstdio>
 #include <filesystem>
 #include <map>
 #include <set>
