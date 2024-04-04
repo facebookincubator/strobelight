@@ -1,9 +1,14 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include "SymUtils.h"
-#include <folly/ScopeGuard.h>
-#include <folly/experimental/symbolizer/Elf.h>
-#include <re2/re2.h>
+#include <elf.h>
+#include <fcntl.h>
+#include <gelf.h>
+#include <libelf.h>
+#include <stdio.h>
+#include <iostream>
+#include <regex>
+#include "Guard.h"
 #include "ProcUtils.h"
 
 namespace facebook::strobelight::oss {
@@ -11,17 +16,127 @@ namespace facebook::strobelight::oss {
 const std::string kUnknownSymbol = "[Unknown]";
 
 bool findSymbolOffsetInFile(
-    const folly::symbolizer::ElfFile& elf,
-    const std::string& symName,
-    size_t& addr) {
-  auto sym = elf.getSymbolByName(symName.c_str());
-  if (sym.first == nullptr || sym.second == nullptr) {
+    const std::string& elfPath,
+    const std::string& symbolName,
+    size_t& symAddr) {
+  const char* path = elfPath.c_str();
+  Elf* elf;
+  int fd;
+
+  if (elf_version(EV_CURRENT) == EV_NONE) {
+    fmt::print(stderr, "libelf initialization failed: {}\n", elf_errmsg(-1));
     return false;
   }
-  auto sec = elf.getSectionByIndex(sym.second->st_shndx);
-  // Get the offset of the symbol in the section
-  addr = sym.second->st_value - (sec->sh_addr - sec->sh_offset);
-  return true;
+
+  fd = open(path, O_RDONLY);
+  if (fd < 0) {
+    return false;
+  }
+  auto guard = Guard([&] {
+    if (elf) {
+      elf_end(elf);
+    }
+    close(fd);
+  });
+
+  elf = elf_begin(fd, ELF_C_READ, nullptr);
+  if (!elf) {
+    return false;
+  }
+
+  Elf_Kind ekind = elf_kind(elf);
+  if (ekind != ELF_K_ELF) {
+    return false;
+  }
+  int eclass = gelf_getclass(elf);
+  if (eclass != ELFCLASS64) {
+    return false;
+  }
+  size_t shdr_stridx;
+  if (elf_getshdrstrndx(elf, &shdr_stridx)) {
+    return false;
+  }
+
+  // Elf is corrupted/truncated, avoid calling elf_strptr.
+  if (!elf_rawdata(elf_getscn(elf, shdr_stridx), nullptr)) {
+    return false;
+  }
+
+  Elf64_Ehdr* ehdr = elf64_getehdr(elf);
+  Elf_Scn* scn = nullptr;
+  while ((scn = elf_nextscn(elf, scn)) != nullptr) {
+    GElf_Shdr sh;
+    Elf_Data* data;
+    int idx, symstrs_idx;
+    Elf64_Sym* sym;
+
+    if (gelf_getshdr(scn, &sh) != &sh) {
+      fmt::print(
+          stderr,
+          "failed to get section(%ld) header from %s\n",
+          elf_ndxscn(scn),
+          path);
+      return false;
+    }
+
+    // we only care about symbols table
+    if (sh.sh_type != SHT_SYMTAB && sh.sh_type != SHT_DYNSYM) {
+      continue;
+    }
+
+    idx = elf_ndxscn(scn);
+    symstrs_idx = sh.sh_link;
+    const char* name = elf_strptr(elf, shdr_stridx, sh.sh_name);
+    if (!name) {
+      fmt::print(stderr, "failed to get section(%d) name from %s\n", idx, path);
+      return false;
+    }
+
+    data = elf_getdata(scn, 0);
+    if (!data) {
+      fmt::print(
+          stderr,
+          "failed to get section(%d) data from %s(%s)\n",
+          idx,
+          name,
+          path);
+      return false;
+    }
+
+    sym = (Elf64_Sym*)data->d_buf;
+    size_t n = sh.sh_size / sh.sh_entsize;
+    for (size_t i = 0; i < n; i++, sym++) {
+      if (ELF64_ST_TYPE(sym->st_info) != STT_FUNC) {
+        continue;
+      }
+
+      name = elf_strptr(elf, symstrs_idx, sym->st_name);
+      if (!name) {
+        continue;
+      }
+      if (symbolName == name) {
+        // Get the section by index
+        if (sym->st_shndx > ehdr->e_shnum) {
+          fmt::print(
+              "ERROR: st_shndx = {} > e_shnum = {}\n",
+              sym->st_shndx,
+              ehdr->e_shnum);
+          return false;
+        }
+        auto sym_scn = elf_getscn(elf, sym->st_shndx);
+        GElf_Shdr symbolShdr;
+        if (gelf_getshdr(sym_scn, &symbolShdr) == nullptr) {
+          fmt::print(
+              stderr, "Failed to get section header for section {} \n", i);
+
+          return false;
+        }
+        symAddr = sym->st_value - (symbolShdr.sh_addr - symbolShdr.sh_offset);
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 bool findSymbolOffsetInMMap(
@@ -29,14 +144,9 @@ bool findSymbolOffsetInMMap(
     const MemoryMapping& mm,
     const std::string& symName,
     size_t& addr) {
-  folly::symbolizer::ElfFile elf;
   const auto& libExePath = fmt::format(
       "/proc/{}/map_files/{:x}-{:x}", pid, mm.startAddr, mm.endAddr);
-
-  if (elf.openNoThrow(libExePath.c_str()) != 0) {
-    return false;
-  }
-  return findSymbolOffsetInFile(elf, symName, addr);
+  return findSymbolOffsetInFile(libExePath.c_str(), symName, addr);
 }
 
 std::vector<std::pair<std::string, size_t>> SymUtils::findSymbolOffsets(
@@ -48,13 +158,8 @@ std::vector<std::pair<std::string, size_t>> SymUtils::findSymbolOffsets(
   // binary, we can skip the rest of the mappings in this case
   if (!searchAllMappings) {
     std::string path = fmt::format("/proc/{}/exe", pid_);
-    folly::symbolizer::ElfFile elf;
     size_t offset;
-    if (elf.openNoThrow(path.c_str()) != 0) {
-      fmt::print(stderr, "Failed to open {} to read ELF data\n", path.c_str());
-      return uprobesToAttach;
-    }
-    bool symbolFound = findSymbolOffsetInFile(elf, symbolName, offset);
+    bool symbolFound = findSymbolOffsetInFile(path.c_str(), symbolName, offset);
     if (symbolFound) {
       uprobesToAttach.emplace_back(path, offset);
       fmt::print(
@@ -100,13 +205,16 @@ std::vector<std::pair<std::string, size_t>> SymUtils::findSymbolOffsets(
 std::vector<std::string> parseFunctionArgs(const std::string& signature) {
   std::vector<std::string> args;
   // Define the regular expression pattern to match function arguments
-  re2::RE2 pattern("\\b\\w+<([^<>]|<([^<>]|<[^<>]*>)*>)*>|\\b\\w+");
-  // Create a RE2 object to search for matches in the signature
-  re2::StringPiece input(signature);
-  re2::StringPiece match;
+  // @lint-ignore-every CLANGTIDY facebook-hte-StdRegexIsAwful
+  std::regex pattern("\\b\\w+<([^<>]|<([^<>]|<[^<>]*>)*>)*>|\\b\\w+");
+  // Create an iterator to iterate over all matches in the signature
+  // @lint-ignore-every CLANGTIDY facebook-hte-StdRegexIsAwful
+  std::sregex_iterator it(signature.begin(), signature.end(), pattern);
+  std::sregex_iterator end;
   // Iterate over all matches and push them into the args vector
-  while (RE2::FindAndConsume(&input, pattern, &match)) {
-    args.push_back(match.as_string());
+  while (it != end) {
+    args.push_back(it->str());
+    ++it;
   }
   return args;
 }
@@ -163,7 +271,7 @@ std::vector<StackFrame> SymUtils::getStackByAddrs(
     return frames;
   }
 
-  auto guard = folly::makeGuard([&] { blaze_result_free(result); });
+  auto guard = Guard([&] { blaze_result_free(result); });
 
   frames.reserve(result->cnt * 2); // Accounting for potential inlined symbols.
 

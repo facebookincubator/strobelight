@@ -6,13 +6,13 @@
 #include <argp.h>
 #include <bpf/libbpf.h>
 #include <fmt/core.h>
-#include <folly/ScopeGuard.h>
 #include <cstdio>
 #include <set>
 #include <vector>
 
 #include "bpf/gpuevent_snoop.h"
 #include "strobelight/src/profilers/gpuevent_snoop/gpuevent_snoop.skel.h"
+#include "strobelight/src/utils/Guard.h"
 #include "strobelight/src/utils/SymUtils.h"
 
 #define MAX_FUNC_DISPLAY_LEN 32
@@ -204,7 +204,7 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-  auto guard = folly::makeGuard([&] {
+  auto guard = Guard([&] {
     gpuevent_snoop_bpf__destroy(skel);
     for (auto link : links) {
       bpf_link__destroy(link);
