@@ -70,7 +70,7 @@ int BPF_KPROBE(
   bpf_probe_read_user(&e->stream, sizeof(uintptr_t), SP_OFFSET(2));
 
   if (prog_cfg.capture_args) {
-    // Read the Kernel Launch Arguments
+    // Read the Cuda Kernel Launch Arguments
     for (int i = 0; i < MAX_GPUKERN_ARGS; i++) {
       const void* arg_addr;
       // We don't know how many argument this kernel has until we parse the
@@ -81,6 +81,13 @@ int BPF_KPROBE(
 
       bpf_probe_read_user(&e->args[i], sizeof(arg_addr), arg_addr);
     }
+  }
+
+  if (prog_cfg.capture_stack) {
+    // Read the Cuda Kernel Launch Stack
+    e->ustack_sz =
+        bpf_get_stack(ctx, e->ustack, sizeof(e->ustack), BPF_F_USER_STACK) /
+        sizeof(uint64_t);
   }
 
   bpf_ringbuf_submit(e, 0);

@@ -11,6 +11,19 @@
 #include "blazesym/blazesym.h" // @manual=fbsource//third-party/rust:blazesym-c-cxx
 
 namespace facebook::strobelight::oss {
+struct StackFrame {
+  std::string name;
+  size_t address;
+  std::string module;
+  std::string file;
+  size_t line;
+  size_t offset;
+  bool inlines;
+  void print() {
+    printf(
+        "%016lx: %s @ 0x%lx+0x%lx\n", address, name.c_str(), address, offset);
+  }
+};
 
 struct SymbolInfo {
   std::string name;
@@ -27,6 +40,8 @@ class SymUtils {
       const std::string& symName,
       bool searchAllMappings = true,
       bool exitOnFirstMatch = false);
+
+  std::vector<StackFrame> getStackByAddrs(uint64_t* stack, size_t stack_sz);
 
   SymbolInfo getSymbolByAddr(size_t addr, bool parseArgs = false);
 

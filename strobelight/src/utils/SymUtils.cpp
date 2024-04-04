@@ -1,6 +1,7 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include "SymUtils.h"
+#include <folly/ScopeGuard.h>
 #include <folly/experimental/symbolizer/Elf.h>
 #include <re2/re2.h>
 #include "ProcUtils.h"
@@ -138,6 +139,70 @@ SymbolInfo SymUtils::getSymbolByAddr(size_t addr, bool parseArgs) {
   }
 
   return {symName, parseFunctionArgs(symName)};
+}
+
+std::vector<StackFrame> SymUtils::getStackByAddrs(
+    uint64_t* stack,
+    size_t stack_sz) {
+  std::vector<StackFrame> frames;
+
+  const struct blaze_result* result;
+  const struct blaze_sym* sym;
+  const struct blaze_symbolize_inlined_fn* inlined;
+
+  struct blaze_symbolize_src_process src = {
+      .type_size = sizeof(src),
+      .pid = (uint32_t)pid_,
+  };
+
+  result = blaze_symbolize_process_abs_addrs(
+      symbolizer_, &src, (const uintptr_t*)stack, stack_sz);
+
+  if (!result) {
+    fmt::print(stderr, "Failed to symbolize stack\n");
+    return frames;
+  }
+
+  auto guard = folly::makeGuard([&] { blaze_result_free(result); });
+
+  frames.reserve(result->cnt * 2); // Accounting for potential inlined symbols.
+
+  for (size_t i = 0; i < result->cnt; i++) {
+    if (result->syms[i].name == NULL) {
+      continue;
+    }
+
+    sym = &result->syms[i];
+
+    StackFrame frame = {
+        .name = sym->name,
+        .address = sym->addr,
+        .offset = sym->offset,
+    };
+
+    if (sym->code_info.file) {
+      frame.file = sym->code_info.file;
+      frame.line = sym->code_info.line;
+    }
+
+    frames.emplace_back(frame);
+
+    for (size_t j = 0; j < sym->inlined_cnt; j++) {
+      inlined = &sym->inlined[j];
+      StackFrame inlined_frame = {
+          .name = sym->name,
+          .address = 0,
+          .offset = 0,
+      };
+
+      if (sym->code_info.file) {
+        inlined_frame.file = inlined->code_info.file;
+        inlined_frame.line = inlined->code_info.line;
+      }
+      frames.emplace_back(inlined_frame);
+    }
+  }
+  return frames;
 }
 
 } // namespace facebook::strobelight::oss

@@ -136,6 +136,15 @@ static int handle_event(void* ctx, void* data, size_t /*data_sz*/) {
     }
     fmt::print("\n");
   }
+
+  if (env.stacks) {
+    fmt::print("Stack: \n");
+    auto stack = symUtils->getStackByAddrs((uint64_t*)e->ustack, e->ustack_sz);
+    for (auto& frame : stack) {
+      frame.print();
+    }
+  }
+  fmt::print("{:-<40}\n", '-');
   return 0;
 }
 

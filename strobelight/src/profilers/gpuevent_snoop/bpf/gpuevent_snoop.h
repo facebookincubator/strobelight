@@ -7,6 +7,12 @@
 #define TASK_COMM_LEN 16
 #define MAX_GPUKERN_ARGS 16
 
+#ifndef MAX_STACK_DEPTH
+#define MAX_STACK_DEPTH 128
+#endif
+
+typedef uint64_t stack_trace_t[MAX_STACK_DEPTH];
+
 struct gpukern_sample {
   int pid, ppid;
   char comm[TASK_COMM_LEN];
@@ -15,4 +21,6 @@ struct gpukern_sample {
   int block_x, block_y, block_z;
   uint64_t stream;
   uint64_t args[MAX_GPUKERN_ARGS];
+  size_t ustack_sz;
+  stack_trace_t ustack;
 };
