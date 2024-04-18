@@ -11,9 +11,9 @@
 #include <vector>
 
 #include "bpf/gpuevent_snoop.h"
-#include "strobelight/src/profilers/gpuevent_snoop/gpuevent_snoop.skel.h"
-#include "strobelight/src/utils/Guard.h"
-#include "strobelight/src/utils/SymUtils.h"
+#include "gpuevent_snoop.skel.h"
+#include "Guard.h"
+#include "SymUtils.h"
 
 #define MAX_FUNC_DISPLAY_LEN 32
 

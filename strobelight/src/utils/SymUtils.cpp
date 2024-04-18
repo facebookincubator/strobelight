@@ -10,6 +10,7 @@
 #include <regex>
 #include "Guard.h"
 #include "ProcUtils.h"
+#include <unistd.h>
 
 namespace facebook::strobelight::oss {
 
@@ -176,7 +177,7 @@ std::vector<std::pair<std::string, size_t>> SymUtils::findSymbolOffsets(
   // shared library
   std::set<std::string> searchedMappings;
   for (auto& mapping : ProcUtils::getAllMemoryMappings(pid_)) {
-    if (mapping.name.empty() || searchedMappings.contains(mapping.name)) {
+    if (mapping.name.empty() || searchedMappings.find(mapping.name) != searchedMappings.end()) {
       continue;
     }
     searchedMappings.emplace(mapping.name);
