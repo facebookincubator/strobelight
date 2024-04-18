@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(utils)
 
+include_directories(${PROJECT_SOURCE_DIR})
+
 # Tell cmake where to find folly, this is the default path from build.sh script
 # list(APPEND CMAKE_PREFIX_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../../folly/installed/lib)
 # message("CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH}")
