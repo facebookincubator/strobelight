@@ -40,8 +40,6 @@ ExternalProject_Add(bpftool
   STEP_TARGETS build
 )
 
-message("BPF Tool Built in => ${CMAKE_CURRENT_BINARY_DIR}/bpftool/")
-
 find_program(CARGO_EXISTS cargo)
 if(CARGO_EXISTS)
   ExternalProject_Add(blazesym
@@ -55,10 +53,9 @@ if(CARGO_EXISTS)
   )
 endif()
 
-
-set(BPFOBJECT_BPFTOOL_EXE ${CMAKE_CURRENT_SOURCE_DIR}/../../bpftool/src/bootstrap/bpftool)
 set(LIBBPF_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libbpf)
 set(LIBBPF_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf.a)
+
 find_package(BpfObject REQUIRED)
 
 add_subdirectory(utils)
