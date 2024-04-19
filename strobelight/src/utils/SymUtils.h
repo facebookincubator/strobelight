@@ -8,7 +8,11 @@
 #include <set>
 #include <string>
 #include <vector>
+#ifdef FBCODE_STROBELIGHT
 #include "blazesym/blazesym.h" // @manual=fbsource//third-party/rust:blazesym-c-cxx
+#else
+#include "blazesym.h" // @manual=fbsource//third-party/rust:blazesym-c-cxx
+#endif
 
 namespace facebook::strobelight::oss {
 struct StackFrame {
