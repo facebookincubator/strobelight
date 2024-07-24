@@ -225,7 +225,7 @@ SymbolInfo SymUtils::getSymbolByAddr(size_t addr, bool parseArgs) {
   if (cachedSyms_.find(addr) != cachedSyms_.end()) {
     return cachedSyms_[addr];
   }
-  const struct blaze_result* result;
+  const struct blaze_syms* syms;
   const struct blaze_sym* sym;
 
   struct blaze_symbolize_src_process src = {
@@ -234,16 +234,16 @@ SymbolInfo SymUtils::getSymbolByAddr(size_t addr, bool parseArgs) {
   };
 
   uintptr_t stack[1] = {addr};
-  result = blaze_symbolize_process_abs_addrs(
+  syms = blaze_symbolize_process_abs_addrs(
       symbolizer_, &src, (const uintptr_t*)stack, 1);
 
-  if (!result || result->cnt == 0 || !result->syms[0].name) {
+  if (!syms || syms->cnt == 0 || !syms->syms[0].name) {
     return {kUnknownSymbol, {}};
   }
 
-  sym = &result->syms[0];
+  sym = &syms->syms[0];
   std::string symName = sym->name;
-  blaze_result_free(result);
+  blaze_syms_free(syms);
   if (!parseArgs) {
     return {symName, {}};
   }
@@ -256,7 +256,7 @@ std::vector<StackFrame> SymUtils::getStackByAddrs(
     size_t stack_sz) {
   std::vector<StackFrame> frames;
 
-  const struct blaze_result* result;
+  const struct blaze_syms* syms;
   const struct blaze_sym* sym;
   const struct blaze_symbolize_inlined_fn* inlined;
 
@@ -265,24 +265,24 @@ std::vector<StackFrame> SymUtils::getStackByAddrs(
       .pid = (uint32_t)pid_,
   };
 
-  result = blaze_symbolize_process_abs_addrs(
+  syms = blaze_symbolize_process_abs_addrs(
       symbolizer_, &src, (const uintptr_t*)stack, stack_sz);
 
-  if (!result) {
+  if (!syms) {
     fmt::print(stderr, "Failed to symbolize stack\n");
     return frames;
   }
 
-  auto guard = Guard([&] { blaze_result_free(result); });
+  auto guard = Guard([&] { blaze_syms_free(syms); });
 
-  frames.reserve(result->cnt * 2); // Accounting for potential inlined symbols.
+  frames.reserve(syms->cnt * 2); // Accounting for potential inlined symbols.
 
-  for (size_t i = 0; i < result->cnt; i++) {
-    if (result->syms[i].name == NULL) {
+  for (size_t i = 0; i < syms->cnt; i++) {
+    if (syms->syms[i].name == NULL) {
       continue;
     }
 
-    sym = &result->syms[i];
+    sym = &syms->syms[i];
 
     StackFrame frame = {
         .name = sym->name,
