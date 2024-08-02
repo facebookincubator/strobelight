@@ -1,5 +1,6 @@
 # Strobelight
 
+![Strobelight Logo](images/Strobelight_brandmark_full-color-black-text.svg)
 Strobelight is a fleetwide profiler framework developed by Meta, designed to provide comprehensive profiling capabilities across large-scale infrastructure. This framework helps in identifying performance bottlenecks and optimizing resource utilization across a fleet of machines.
 
 Strobelight is composed of a number of profilers, each profiler collects a certain type of profile. This can include CPU, GPU, Memory, or other types of profiles.
@@ -26,7 +27,7 @@ The `gpuevent` profiler attaches to `cudaLaunchKernel` events and collects infor
 2. Navigate to the project directory and follow the build instructions:
    ```bash
     cd strobelight
-    ./scripts/setup.sh -u
+    ./scripts/build.sh -u
    ```
 
 ### Usage
