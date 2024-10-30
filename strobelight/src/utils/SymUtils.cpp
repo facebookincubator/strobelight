@@ -233,9 +233,8 @@ SymbolInfo SymUtils::getSymbolByAddr(size_t addr, bool parseArgs) {
       .pid = (uint32_t)pid_,
   };
 
-  uintptr_t stack[1] = {addr};
-  syms = blaze_symbolize_process_abs_addrs(
-      symbolizer_, &src, (const uintptr_t*)stack, 1);
+  uint64_t stack[1] = {addr};
+  syms = blaze_symbolize_process_abs_addrs(symbolizer_, &src, stack, 1);
 
   if (!syms || syms->cnt == 0 || !syms->syms[0].name) {
     return {kUnknownSymbol, {}};
@@ -265,8 +264,7 @@ std::vector<StackFrame> SymUtils::getStackByAddrs(
       .pid = (uint32_t)pid_,
   };
 
-  syms = blaze_symbolize_process_abs_addrs(
-      symbolizer_, &src, (const uintptr_t*)stack, stack_sz);
+  syms = blaze_symbolize_process_abs_addrs(symbolizer_, &src, stack, stack_sz);
 
   if (!syms) {
     fmt::print(stderr, "Failed to symbolize stack\n");
