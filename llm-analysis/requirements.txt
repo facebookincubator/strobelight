@@ -1,0 +1,10 @@
+pandas
+matplotlib
+seaborn
+numpy
+pillow
+requests
+openai>=1.0.0
+jinja2
+markdown
+tabulate

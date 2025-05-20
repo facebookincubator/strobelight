@@ -1,0 +1,239 @@
+
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>CUDA Trace Analysis Report</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    margin: 0;
+                    padding: 20px;
+                    color: #333;
+                }
+                h1, h2, h3 {
+                    color: #2c3e50;
+                }
+                .container {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                }
+                .dashboard {
+                    margin: 20px 0;
+                    text-align: center;
+                }
+                .dashboard img {
+                    max-width: 100%;
+                    height: auto;
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                }
+                .visualization-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+                    gap: 20px;
+                    margin: 20px 0;
+                }
+                .visualization-item {
+                    border: 1px solid #ddd;
+                    padding: 15px;
+                    border-radius: 5px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                }
+                .visualization-item img {
+                    max-width: 100%;
+                    height: auto;
+                }
+                .summary {
+                    background-color: #f8f9fa;
+                    padding: 20px;
+                    border-radius: 5px;
+                    margin: 20px 0;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 20px 0;
+                }
+                th, td {
+                    padding: 12px 15px;
+                    border-bottom: 1px solid #ddd;
+                    text-align: left;
+                }
+                th {
+                    background-color: #f2f2f2;
+                }
+                tr:hover {
+                    background-color: #f5f5f5;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>CUDA Trace Analysis Report</h1>
+                
+                <div class="summary">
+                    <h2>Summary</h2>
+                    <p>Total trace entries: 660</p>
+                    <p>Unique API functions: 6</p>
+                    <p>Unique kernels: 1</p>
+                    <p>Trace duration: 28.0 seconds</p>
+                </div>
+                
+                <h2>Dashboard</h2>
+                <div class="dashboard">
+                    <img src="cuda_trace_dashboard.png" alt="CUDA Trace Analysis Dashboard">
+                </div>
+                
+                <h2>Individual Visualizations</h2>
+                <div class="visualization-grid">
+        
+                    <div class="visualization-item">
+                        <h3>Api Distribution</h3>
+                        <img src="../../analysis/api_distribution.png" alt="api_distribution.png">
+                    </div>
+            
+                    <div class="visualization-item">
+                        <h3>Call Site Distribution</h3>
+                        <img src="../../analysis/call_site_distribution.png" alt="call_site_distribution.png">
+                    </div>
+            
+                    <div class="visualization-item">
+                        <h3>Api Time Heatmap</h3>
+                        <img src="../../analysis/api_time_heatmap.png" alt="api_time_heatmap.png">
+                    </div>
+            
+                    <div class="visualization-item">
+                        <h3>Block Dimensions</h3>
+                        <img src="../../analysis/block_dimensions.png" alt="block_dimensions.png">
+                    </div>
+            
+                    <div class="visualization-item">
+                        <h3>Api Call Timeline</h3>
+                        <img src="../../analysis/api_call_timeline.png" alt="api_call_timeline.png">
+                    </div>
+            
+                    <div class="visualization-item">
+                        <h3>Grid Dimensions</h3>
+                        <img src="../../analysis/grid_dimensions.png" alt="grid_dimensions.png">
+                    </div>
+            
+                    <div class="visualization-item">
+                        <h3>Memory Operations Timeline</h3>
+                        <img src="../../analysis/memory_operations_timeline.png" alt="memory_operations_timeline.png">
+                    </div>
+            
+                    <div class="visualization-item">
+                        <h3>Kernel Name Distribution</h3>
+                        <img src="../../analysis/kernel_name_distribution.png" alt="kernel_name_distribution.png">
+                    </div>
+            
+                    <div class="visualization-item">
+                        <h3>Call Site Api Heatmap</h3>
+                        <img src="../../analysis/call_site_api_heatmap.png" alt="call_site_api_heatmap.png">
+                    </div>
+            
+                    <div class="visualization-item">
+                        <h3>Memory Operations</h3>
+                        <img src="../../analysis/memory_operations.png" alt="memory_operations.png">
+                    </div>
+            
+                </div>
+                
+                <h2>Enhanced Visualizations</h2>
+                <div class="visualization-grid">
+            
+                        <div class="visualization-item">
+                            <h3>Enhanced Call Site Api Heatmap</h3>
+                            <img src="enhanced_call_site_api_heatmap.png" alt="enhanced_call_site_api_heatmap.png">
+                        </div>
+                
+                        <div class="visualization-item">
+                            <h3>Enhanced Kernel Name Distribution</h3>
+                            <img src="enhanced_kernel_name_distribution.png" alt="enhanced_kernel_name_distribution.png">
+                        </div>
+                
+                        <div class="visualization-item">
+                            <h3>Enhanced Memory Operations</h3>
+                            <img src="enhanced_memory_operations.png" alt="enhanced_memory_operations.png">
+                        </div>
+                
+                        <div class="visualization-item">
+                            <h3>Enhanced Memory Operations Timeline</h3>
+                            <img src="enhanced_memory_operations_timeline.png" alt="enhanced_memory_operations_timeline.png">
+                        </div>
+                
+                        <div class="visualization-item">
+                            <h3>Enhanced Grid Dimensions</h3>
+                            <img src="enhanced_grid_dimensions.png" alt="enhanced_grid_dimensions.png">
+                        </div>
+                
+                        <div class="visualization-item">
+                            <h3>Enhanced Api Distribution</h3>
+                            <img src="enhanced_api_distribution.png" alt="enhanced_api_distribution.png">
+                        </div>
+                
+                        <div class="visualization-item">
+                            <h3>Enhanced Api Call Timeline</h3>
+                            <img src="enhanced_api_call_timeline.png" alt="enhanced_api_call_timeline.png">
+                        </div>
+                
+                        <div class="visualization-item">
+                            <h3>Enhanced Block Dimensions</h3>
+                            <img src="enhanced_block_dimensions.png" alt="enhanced_block_dimensions.png">
+                        </div>
+                
+                        <div class="visualization-item">
+                            <h3>Enhanced Call Site Distribution</h3>
+                            <img src="enhanced_call_site_distribution.png" alt="enhanced_call_site_distribution.png">
+                        </div>
+                
+                        <div class="visualization-item">
+                            <h3>Enhanced Api Time Heatmap</h3>
+                            <img src="enhanced_api_time_heatmap.png" alt="enhanced_api_time_heatmap.png">
+                        </div>
+                
+                </div>
+                
+                <h2>API Distribution</h2>
+                <table>
+                    <tr>
+                        <th>API Function</th>
+                        <th>Count</th>
+                    </tr>
+            
+                    <tr>
+                        <td>cudaLaunchKernel</td>
+                        <td>300</td>
+                    </tr>
+                
+                    <tr>
+                        <td>cudaMemcpy</td>
+                        <td>120</td>
+                    </tr>
+                
+                    <tr>
+                        <td>cudaMemcpyAsync</td>
+                        <td>60</td>
+                    </tr>
+                
+                    <tr>
+                        <td>cudaStreamSynchronize</td>
+                        <td>60</td>
+                    </tr>
+                
+                    <tr>
+                        <td>cudaMalloc</td>
+                        <td>60</td>
+                    </tr>
+                
+                    <tr>
+                        <td>cudaFree</td>
+                        <td>60</td>
+                    </tr>
+                
+                </table>
+            
+            </div>
+        </body>
+        </html>
+        

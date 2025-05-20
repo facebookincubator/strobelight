@@ -1,0 +1,204 @@
+{
+  "api_distribution": [
+    {
+      "API Function": "cudaLaunchKernel",
+      "Count": 300
+    },
+    {
+      "API Function": "cudaMemcpy",
+      "Count": 120
+    },
+    {
+      "API Function": "cudaMemcpyAsync",
+      "Count": 60
+    },
+    {
+      "API Function": "cudaStreamSynchronize",
+      "Count": 60
+    },
+    {
+      "API Function": "cudaMalloc",
+      "Count": 60
+    },
+    {
+      "API Function": "cudaFree",
+      "Count": 60
+    }
+  ],
+  "kernel_name_distribution": [
+    {
+      "Kernel Name": "vector_add",
+      "Count": 300
+    }
+  ],
+  "grid_block_dimensions": [
+    {
+      "Value": 4096,
+      "Count": 300,
+      "Dimension": "grid_x"
+    },
+    {
+      "Value": 1,
+      "Count": 300,
+      "Dimension": "grid_y"
+    },
+    {
+      "Value": 1,
+      "Count": 300,
+      "Dimension": "grid_z"
+    },
+    {
+      "Value": 256,
+      "Count": 300,
+      "Dimension": "block_x"
+    },
+    {
+      "Value": 1,
+      "Count": 300,
+      "Dimension": "block_y"
+    },
+    {
+      "Value": 1,
+      "Count": 300,
+      "Dimension": "block_z"
+    }
+  ],
+  "temporal_distribution": [
+    {
+      "Relative Time (s)": 0.0,
+      "API Call Count": 44
+    },
+    {
+      "Relative Time (s)": 2.0,
+      "API Call Count": 44
+    },
+    {
+      "Relative Time (s)": 4.0,
+      "API Call Count": 44
+    },
+    {
+      "Relative Time (s)": 6.0,
+      "API Call Count": 44
+    },
+    {
+      "Relative Time (s)": 8.0,
+      "API Call Count": 44
+    },
+    {
+      "Relative Time (s)": 10.0,
+      "API Call Count": 44
+    },
+    {
+      "Relative Time (s)": 12.0,
+      "API Call Count": 44
+    },
+    {
+      "Relative Time (s)": 14.0,
+      "API Call Count": 44
+    },
+    {
+      "Relative Time (s)": 16.0,
+      "API Call Count": 44
+    },
+    {
+      "Relative Time (s)": 18.0,
+      "API Call Count": 44
+    },
+    {
+      "Relative Time (s)": 20.0,
+      "API Call Count": 44
+    },
+    {
+      "Relative Time (s)": 22.0,
+      "API Call Count": 44
+    },
+    {
+      "Relative Time (s)": 24.0,
+      "API Call Count": 44
+    },
+    {
+      "Relative Time (s)": 26.0,
+      "API Call Count": 44
+    },
+    {
+      "Relative Time (s)": 28.0,
+      "API Call Count": 44
+    }
+  ],
+  "memory_operations": [
+    {
+      "Memory Operation": "cudaMemcpy",
+      "Count": 120
+    },
+    {
+      "Memory Operation": "cudaMemcpyAsync",
+      "Count": 60
+    },
+    {
+      "Memory Operation": "cudaMalloc",
+      "Count": 60
+    },
+    {
+      "Memory Operation": "cudaFree",
+      "Count": 60
+    }
+  ],
+  "call_site_distribution": [
+    {
+      "Call Site": "__libc_start_main",
+      "Count": 360
+    },
+    {
+      "Call Site": "__device_stub__Z10vector_addPfS_S_i(float*, float*, float*, int)",
+      "Count": 300
+    }
+  ],
+  "call_site_api_relationship": [
+    {
+      "Call Site": "__device_stub__Z10vector_addPfS_S_i(float*, float*, float*, int)",
+      "CUDA API Function": "cudaLaunchKernel",
+      "Count": 300
+    },
+    {
+      "Call Site": "__libc_start_main",
+      "CUDA API Function": "cudaMemcpy",
+      "Count": 120
+    },
+    {
+      "Call Site": "__libc_start_main",
+      "CUDA API Function": "cudaFree",
+      "Count": 60
+    },
+    {
+      "Call Site": "__libc_start_main",
+      "CUDA API Function": "cudaMalloc",
+      "Count": 60
+    },
+    {
+      "Call Site": "__libc_start_main",
+      "CUDA API Function": "cudaMemcpyAsync",
+      "Count": 60
+    },
+    {
+      "Call Site": "__libc_start_main",
+      "CUDA API Function": "cudaStreamSynchronize",
+      "Count": 60
+    }
+  ],
+  "summary": {
+    "total_trace_entries": 660,
+    "unique_api_functions": 6,
+    "top_api_functions": {
+      "cudaLaunchKernel": 300,
+      "cudaMemcpy": 120,
+      "cudaMemcpyAsync": 60,
+      "cudaStreamSynchronize": 60,
+      "cudaMalloc": 60
+    },
+    "unique_kernels": 1,
+    "kernel_names": [
+      "vector_add"
+    ],
+    "trace_duration_seconds": 28.0
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "total_trace_entries": 660,
+  "unique_api_functions": 6,
+  "top_api_functions": {
+    "cudaLaunchKernel": 300,
+    "cudaMemcpy": 120,
+    "cudaMemcpyAsync": 60,
+    "cudaStreamSynchronize": 60,
+    "cudaMalloc": 60
+  },
+  "unique_kernels": 1,
+  "kernel_names": [
+    "vector_add"
+  ],
+  "trace_duration_seconds": 28.0
+}

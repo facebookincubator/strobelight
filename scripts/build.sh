@@ -101,7 +101,6 @@ build_strobelight() {
     popd
 }
 
-
 get_required_libs() {
     if [ -x "$(command -v dnf)" ]; then
        sudo dnf install \
@@ -109,14 +108,21 @@ get_required_libs() {
             elfutils-libelf \
             elfutils-libelf-devel\
             fmt-devel
-    else
+    elif [ -x "$(command -v yum)" ]; then
         sudo yum install -y \
             git \
             elfutils-libelf-devel \
             fmt-devel
+    elif [ -x "$(command -v apt)" ]; then
+sudo apt install -y \
+   git \
+   cmake \
+   clang \
+   libfmt-dev
+   else
+echo "Package manager not found or not recognized."
     fi
 }
-
 update_submodules
 get_required_libs
 get_cargo_blazesym

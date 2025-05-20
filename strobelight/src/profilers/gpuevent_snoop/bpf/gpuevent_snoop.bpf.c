@@ -1,7 +1,5 @@
-// Copyright (c) Meta Platforms, Inc. and affiliates.
-//
-// This source code is licensed under the MIT license found in the
-// LICENSE file in the root directory of this source tree.
+// Copyright (c) Meta Platforms, Inc.
+// Licensed under the MIT License.
 
 #ifdef FBCODE_STROBELIGHT
 #include <bpf/vmlinux/vmlinux.h>
@@ -24,7 +22,6 @@ const volatile struct {
   bool capture_args;
   bool capture_stack;
 } prog_cfg = {
-    // These defaults will be overridden from user space
     .debug = true,
     .capture_args = true,
     .capture_stack = true,
@@ -36,12 +33,9 @@ const volatile struct {
       bpf_printk(fmt, ##__VA_ARGS__); \
   })
 
-// The caller uses registers to pass the first 6 arguments to the callee.  Given
-// the arguments in left-to-right order, the order of registers used is: %rdi,
-// %rsi, %rdx, %rcx, %r8, and %r9. Any remaining arguments are passed on the
-// stack in reverse order so that they can be popped off the stack in order.
 #define SP_OFFSET(offset) (void*)PT_REGS_SP(ctx) + offset * 8
 
+// CUDA Kernel Launch Tracepoint
 SEC("uprobe")
 int BPF_KPROBE(
     handle_cuda_launch,
@@ -51,51 +45,143 @@ int BPF_KPROBE(
     u64 block_xy,
     u64 block_z,
     uintptr_t argv) {
-  struct gpukern_sample* e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
-  if (!e) {
-    bpf_printk_debug("Failed to allocate ringbuf entry");
-    return 0;
-  }
+    
+    struct gpukern_sample* e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e) return 0;
 
-  struct task_struct* task = (struct task_struct*)bpf_get_current_task();
+    struct task_struct* task = (struct task_struct*)bpf_get_current_task();
+    e->pid = bpf_get_current_pid_tgid() >> 32;
+    e->ppid = BPF_CORE_READ(task, real_parent, tgid);
+    bpf_get_current_comm(&e->comm, sizeof(e->comm));
 
-  e->pid = bpf_get_current_pid_tgid() >> 32;
-  e->ppid = BPF_CORE_READ(task, real_parent, tgid);
-  bpf_get_current_comm(&e->comm, sizeof(e->comm));
+    e->event_type = EVENT_CUDA_LAUNCH_KERNEL;
+    e->kern_func_off = func_off;
+    e->grid_x = (u32)grid_xy;
+    e->grid_y = (u32)(grid_xy >> 32);
+    e->grid_z = (u32)grid_z;
+    e->block_x = (u32)block_xy;
+    e->block_y = (u32)(block_xy >> 32);
+    e->block_z = (u32)block_z;
 
-  e->kern_func_off = func_off;
-  e->grid_x = (u32)grid_xy;
-  e->grid_y = (u32)(grid_xy >> 32);
-  e->grid_z = (u32)grid_z;
-  e->block_x = (u32)block_xy;
-  e->block_y = (u32)(block_xy >> 32);
-  e->block_z = (u32)block_z;
+    bpf_probe_read_user(&e->stream, sizeof(uintptr_t), SP_OFFSET(2));
 
-  bpf_probe_read_user(&e->stream, sizeof(uintptr_t), SP_OFFSET(2));
-
-  if (prog_cfg.capture_args) {
-    // Read the Cuda Kernel Launch Arguments
-    for (int i = 0; i < MAX_GPUKERN_ARGS; i++) {
-      const void* arg_addr;
-      // We don't know how many argument this kernel has until we parse the
-      // signature, so we always attemps to read the maximum number of args,
-      // even if some of these arg values are not valid.
-      bpf_probe_read_user(
-          &arg_addr, sizeof(u64), (const void*)(argv + i * sizeof(u64)));
-
-      bpf_probe_read_user(&e->args[i], sizeof(arg_addr), arg_addr);
+    if (prog_cfg.capture_args) {
+        for (int i = 0; i < MAX_GPUKERN_ARGS; i++) {
+            const void* arg_addr;
+            bpf_probe_read_user(&arg_addr, sizeof(u64), (const void*)(argv + i * sizeof(u64)));
+            bpf_probe_read_user(&e->args[i], sizeof(arg_addr), arg_addr);
+        }
     }
-  }
 
-  if (prog_cfg.capture_stack) {
-    // Read the Cuda Kernel Launch Stack
-    e->ustack_sz =
-        bpf_get_stack(ctx, e->ustack, sizeof(e->ustack), BPF_F_USER_STACK) /
-        sizeof(uint64_t);
-  }
+    if (prog_cfg.capture_stack) {
+        e->ustack_sz = bpf_get_stack(ctx, e->ustack, sizeof(e->ustack), BPF_F_USER_STACK) /
+                       sizeof(uint64_t);
+    }
 
-  bpf_ringbuf_submit(e, 0);
-  return 0;
+    bpf_ringbuf_submit(e, 0);
+    return 0;
+}
+
+// CUDA Memory Management Tracepoints
+SEC("uprobe")
+int BPF_KPROBE(handle_cuda_malloc, size_t size, void **devPtr) {
+    struct gpukern_sample* e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e) return 0;
+
+    e->pid = bpf_get_current_pid_tgid() >> 32;
+    bpf_get_current_comm(&e->comm, sizeof(e->comm));
+
+    e->event_type = EVENT_CUDA_MALLOC;
+    e->kern_func_off = (uint64_t)PT_REGS_IP(ctx);
+    e->args[0] = size;
+    bpf_probe_read_user(&e->args[1], sizeof(void *), devPtr);
+    
+    bpf_ringbuf_submit(e, 0);
+    return 0;
+}
+
+SEC("uprobe")
+int BPF_KPROBE(handle_cuda_free, void *devPtr) {
+    struct gpukern_sample* e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e) return 0;
+
+    e->pid = bpf_get_current_pid_tgid() >> 32;
+    bpf_get_current_comm(&e->comm, sizeof(e->comm));
+
+    e->event_type = EVENT_CUDA_FREE;
+    e->kern_func_off = (uint64_t)PT_REGS_IP(ctx);
+    e->args[0] = (uint64_t)devPtr;
+
+    bpf_ringbuf_submit(e, 0);
+    return 0;
+}
+
+// CUDA Memory Copy Tracepoints
+SEC("uprobe")
+int BPF_KPROBE(handle_cuda_memcpy, void *dst, const void *src, size_t count, int kind) {
+    struct gpukern_sample* e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e) return 0;
+
+    e->pid = bpf_get_current_pid_tgid() >> 32;
+    bpf_get_current_comm(&e->comm, sizeof(e->comm));
+
+    e->event_type = EVENT_CUDA_MEMCPY;
+    e->kern_func_off = (uint64_t)PT_REGS_IP(ctx);
+    e->args[0] = (uint64_t)dst;
+    e->args[1] = (uint64_t)src;
+    e->args[2] = count;
+    e->args[3] = kind;
+
+    bpf_ringbuf_submit(e, 0);
+    return 0;
+}
+
+// CUDA Stream and Event Management Tracepoints
+SEC("uprobe")
+int BPF_KPROBE(handle_cuda_stream_create, void **stream) {
+    struct gpukern_sample* e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e) return 0;
+
+    e->pid = bpf_get_current_pid_tgid() >> 32;
+    bpf_get_current_comm(&e->comm, sizeof(e->comm));
+
+    e->event_type = EVENT_CUDA_STREAM_CREATE;
+    bpf_probe_read_user(&e->args[0], sizeof(void *), stream);
+
+    bpf_ringbuf_submit(e, 0);
+    return 0;
+}
+
+SEC("uprobe")
+int BPF_KPROBE(handle_cuda_stream_destroy, void *stream) {
+    struct gpukern_sample* e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e) return 0;
+
+    e->pid = bpf_get_current_pid_tgid() >> 32;
+    bpf_get_current_comm(&e->comm, sizeof(e->comm));
+
+    e->event_type = EVENT_CUDA_STREAM_DESTROY;
+    e->args[0] = (uint64_t)stream;
+
+    bpf_ringbuf_submit(e, 0);
+    return 0;
+}
+
+// CUDA Synchronization Tracepoints
+SEC("uprobe")
+int BPF_KPROBE(handle_cuda_device_synchronize) {
+    struct gpukern_sample* e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+    if (!e) return 0;
+
+    e->pid = bpf_get_current_pid_tgid() >> 32;
+    bpf_get_current_comm(&e->comm, sizeof(e->comm));
+
+    e->event_type = EVENT_CUDA_DEVICE_SYNCHRONIZE;
+    e->kern_func_off = (uint64_t)PT_REGS_IP(ctx);
+
+    bpf_ringbuf_submit(e, 0);
+    return 0;
 }
 
 char LICENSE[] SEC("license") = "Dual MIT/GPL";
+
