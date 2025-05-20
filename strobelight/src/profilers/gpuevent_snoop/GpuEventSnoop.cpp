@@ -22,7 +22,27 @@
 #define MAX_FUNC_DISPLAY_LEN 32
 
 static const int64_t RINGBUF_MAX_ENTRIES = 64 * 1024 * 1024;
-static const std::string kCudaLaunchSymName = "cudaLaunchKernel";
+
+// static const std::string kCudaLaunchSymName = "cudaLaunchKernel";
+
+// List of CUDA symbols to attach uprobes
+static const std::vector<std::string> kCudaSymbols = {
+    "cudaLaunchKernel",
+    "cudaLaunchCooperativeKernel",
+    "cudaGraphLaunch",
+    "cudaMalloc",
+    "cudaFree",
+    "cudaMemcpy",
+    "cudaMemcpyAsync",
+    "cudaStreamCreate",
+    "cudaStreamDestroy",
+    "cudaStreamSynchronize",
+    "cudaEventRecord",
+    "cudaEventSynchronize",
+    "cudaEventElapsedTime",
+    "cudaDeviceSynchronize"
+};
+
 
 using namespace facebook::strobelight::oss;
 
@@ -113,43 +133,73 @@ static int libbpf_print_fn(
 }
 
 static int handle_event(void* ctx, void* data, size_t /*data_sz*/) {
-  const struct gpukern_sample* e = (struct gpukern_sample*)data;
+    const struct gpukern_sample* e = (struct gpukern_sample*)data;
+    SymUtils* symUtils = (SymUtils*)ctx;
 
-  SymUtils* symUtils = (SymUtils*)ctx;
+    // Get function symbol information
+    SymbolInfo symInfo = symUtils->getSymbolByAddr(e->kern_func_off, env.args);
 
-  SymbolInfo symInfo = symUtils->getSymbolByAddr(e->kern_func_off, env.args);
+    // Timestamp
+    auto timestamp = std::chrono::system_clock::now();
+    std::time_t timestamp_t = std::chrono::system_clock::to_time_t(timestamp);
 
-  fmt::print(
-      "{} [{}] KERNEL [0x{:x}] STREAM 0x{:<16x} GRID ({},{},{}) BLOCK ({},{},{}) {}\n",
-      e->comm,
-      e->pid,
-      e->kern_func_off,
-      e->stream,
-      e->grid_x,
-      e->grid_y,
-      e->grid_z,
-      e->block_x,
-      e->block_y,
-      e->block_z,
-      symInfo.name.substr(0, MAX_FUNC_DISPLAY_LEN) +
-          (symInfo.name.length() > MAX_FUNC_DISPLAY_LEN ? "..." : ""));
-  if (env.args) {
-    fmt::print("Args: ");
-    for (size_t i = 0; i < symInfo.args.size() && i < MAX_GPUKERN_ARGS; i++) {
-      fmt::print("{} arg{}=0x{:x}\n ", symInfo.args[i], i, e->args[i]);
+    // Process info
+    fmt::print("[TIMESTAMP] {}\n", std::ctime(&timestamp_t));
+    fmt::print("[PROCESS] {} [{}] CUDA API EventType {}\n", e->comm, e->pid, e->event_type);
+
+    // Print event-specific information
+    switch (e->event_type) {
+        case EVENT_CUDA_LAUNCH_KERNEL:
+            fmt::print("[CUDA_LAUNCH_KERNEL] Grid: ({},{},{}), Block: ({},{},{})\n",
+                e->grid_x, e->grid_y, e->grid_z, e->block_x, e->block_y, e->block_z);
+            break;
+        case EVENT_CUDA_MALLOC:
+            fmt::print("[CUDA_MALLOC] Size: {} bytes, Ptr: 0x{:x}\n", e->args[0], e->args[1]);
+            break;
+        case EVENT_CUDA_FREE:
+            fmt::print("[CUDA_FREE] Ptr: 0x{:x}\n", e->args[0]);
+            break;
+        case EVENT_CUDA_MEMCPY:
+            fmt::print("[CUDA_MEMCPY] Src: 0x{:x}, Dst: 0x{:x}, Size: {} bytes, Kind: {}\n",
+                e->args[1], e->args[0], e->args[2], e->args[3]);
+            break;
+        case EVENT_CUDA_STREAM_CREATE:
+            fmt::print("[CUDA_STREAM_CREATE] Stream: 0x{:x}\n", e->args[0]);
+            break;
+        case EVENT_CUDA_STREAM_DESTROY:
+            fmt::print("[CUDA_STREAM_DESTROY] Stream: 0x{:x}\n", e->args[0]);
+            break;
+        case EVENT_CUDA_EVENT_RECORD:
+            fmt::print("[CUDA_EVENT_RECORD] Event: 0x{:x}\n", e->args[0]);
+            break;
+        case EVENT_CUDA_EVENT_SYNCHRONIZE:
+            fmt::print("[CUDA_EVENT_SYNCHRONIZE] Event: 0x{:x}\n", e->args[0]);
+            break;
+        default:
+            fmt::print("[UNKNOWN_CUDA_EVENT]\n");
+            break;
     }
-    fmt::print("\n");
-  }
 
-  if (env.stacks) {
-    fmt::print("Stack: \n");
-    auto stack = symUtils->getStackByAddrs((uint64_t*)e->ustack, e->ustack_sz);
-    for (auto& frame : stack) {
-      frame.print();
+    // Print function arguments if requested
+    if (env.args) {
+        fmt::print("[ARGS] ");
+        for (size_t i = 0; i < symInfo.args.size() && i < MAX_GPUKERN_ARGS; i++) {
+            fmt::print("{} arg{}=0x{:x} ", symInfo.args[i], i, e->args[i]);
+        }
+        fmt::print("\n");
     }
-  }
-  fmt::print("{:-<40}\n", '-');
-  return 0;
+
+    // Print stack trace if requested
+    if (env.stacks) {
+        fmt::print("[STACK_TRACE]\n");
+        auto stack = symUtils->getStackByAddrs((uint64_t*)e->ustack, e->ustack_sz);
+        for (auto& frame : stack) {
+            fmt::print("  {}\n", frame.name);
+        }
+    }
+
+    fmt::print("{:-<80}\n", '-');  // Separator
+    return 0;
 }
 
 bool hasExceededProfilingLimit(
@@ -216,22 +266,23 @@ int main(int argc, char* argv[]) {
     ring_buffer__free(ringBuffer);
   });
 
-  auto offsets = symUtils.findSymbolOffsets(kCudaLaunchSymName);
-  if (offsets.empty()) {
-    fmt::print(stderr, "Failed to find symbol {}\n", kCudaLaunchSymName);
-    return -1;
-  }
-  for (auto& offset : offsets) {
-    auto link = bpf_program__attach_uprobe(
-        skel->progs.handle_cuda_launch,
-        false /* retprobe */,
-        env.pid,
-        offset.first.c_str(),
-        offset.second);
-    if (link) {
-      links.emplace_back(link);
+ /* Attach Uprobes for CUDA API tracepoints */
+  for (const auto& symbol : kCudaSymbols) {
+    auto offsets = symUtils.findSymbolOffsets(symbol);
+    if (offsets.empty()) {
+      fmt::print(stderr, "Failed to find symbol {}\n", symbol);
+      continue;
+    }
+    for (const auto& offset : offsets) {
+      auto link = bpf_program__attach_uprobe(
+          skel->progs.handle_cuda_launch, false, env.pid,
+          offset.first.c_str(), offset.second);
+      if (link) {
+        links.emplace_back(link);
+      }
     }
   }
+
   /* Set up ring buffer polling */
   ringBuffer = ring_buffer__new(
       bpf_map__fd(skel->maps.rb), handle_event, (void*)&symUtils, nullptr);

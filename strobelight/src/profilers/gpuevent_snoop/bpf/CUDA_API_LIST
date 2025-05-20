@@ -1,0 +1,31 @@
+Memory Management APIs:
+cudaMalloc
+cudaFree
+cudaMemcpy
+cudaMemcpyAsync
+
+Stream and Event Management APIs:
+cudaStreamCreate
+cudaStreamDestroy
+cudaStreamSynchronize
+
+Kernel Execution APIs:
+cudaGraphLaunch
+cudaLaunchCooperativeKernel
+cudaLaunchHostFunc
+
+Synchronization APIs:
+cudaDeviceSynchronize
+cudaEventRecord
+cudaEventSynchronize
+cudaEventElapsedTime
+
+-----
+Tracepoint		Needs Special Handling?		Why?
+cudaLaunchKernel	✅ Yes				Needs grid_x, grid_y, grid_z, block_x, block_y, block_z, stream, argv parsing, and stack trace.
+cudaMalloc		❌ No				Just captures size and pointer; no need for grid/block dimensions or stack.
+cudaFree		❌ No				Only captures pointer being freed.
+cudaMemcpy		❌ No				Only captures source, destination, size, and kind.
+cudaStreamCreate	❌ No				Only captures stream pointer.
+cudaDeviceSynchronize	❌ No				No arguments to capture.
+
