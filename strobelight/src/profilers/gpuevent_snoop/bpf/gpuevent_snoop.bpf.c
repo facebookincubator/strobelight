@@ -57,10 +57,10 @@ int BPF_KPROBE(
     return 0;
   }
 
-  struct task_struct* task = (struct task_struct*)bpf_get_current_task();
+  struct task_struct* task = bpf_get_current_task_btf();
 
   e->pid = bpf_get_current_pid_tgid() >> 32;
-  e->ppid = BPF_CORE_READ(task, real_parent, tgid);
+  e->ppid = task->real_parent->tgid;
   bpf_get_current_comm(&e->comm, sizeof(e->comm));
 
   e->kern_func_off = func_off;
