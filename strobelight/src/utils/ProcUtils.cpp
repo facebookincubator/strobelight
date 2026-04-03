@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates.
+
 #include "ProcUtils.h"
 namespace facebook::strobelight::oss {
 bool parseMemoryMapLine(const std::string& line, MemoryMapping& module) {

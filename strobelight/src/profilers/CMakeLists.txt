@@ -1,3 +1,5 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+
 bpf_object(gpuevent_snoop gpuevent_snoop/bpf/gpuevent_snoop.bpf.c)
 add_dependencies(gpuevent_snoop_skel libbpf-build bpftool-build)
 
