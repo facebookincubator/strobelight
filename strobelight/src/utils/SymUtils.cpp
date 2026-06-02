@@ -276,7 +276,7 @@ std::vector<StackFrame> SymUtils::getStackByAddrs(
   frames.reserve(syms->cnt * 2); // Accounting for potential inlined symbols.
 
   for (size_t i = 0; i < syms->cnt; i++) {
-    if (syms->syms[i].name == NULL) {
+    if (syms->syms[i].name == nullptr) {
       continue;
     }
 
