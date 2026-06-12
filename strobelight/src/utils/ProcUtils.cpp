@@ -2,6 +2,12 @@
 
 #include "ProcUtils.h"
 namespace facebook::strobelight::oss {
+
+// Stringify helpers so the %[^\n] conversion below can carry a field width of
+// PATH_MAX, bounding how many path characters sscanf writes into buf.
+#define STR(x) #x
+#define XSTR(x) STR(x)
+
 bool parseMemoryMapLine(const std::string& line, MemoryMapping& module) {
   char read;
   char write;
@@ -11,8 +17,12 @@ bool parseMemoryMapLine(const std::string& line, MemoryMapping& module) {
   buf[0] = '\0';
   auto res = std::sscanf(
       line.c_str(),
-      // From Kernel source fs/proc/task_mmu.c
-      "%lx-%lx %c%c%c%c %llx %lx:%lx %lu %[^\n]",
+      // From Kernel source fs/proc/task_mmu.c. The path field carries a
+      // PATH_MAX width specifier: the kernel octal-escapes chars <= 0x20 in
+      // /proc/<pid>/maps (e.g. space -> \040), so a near-PATH_MAX raw path can
+      // render up to ~4x longer. Without the bound, sscanf would overflow buf
+      // (a PATH_MAX + 1 stack buffer). See T267287915.
+      "%lx-%lx %c%c%c%c %llx %lx:%lx %lu %" XSTR(PATH_MAX) "[^\n]",
       &module.startAddr,
       &module.endAddr,
       &read,
@@ -37,6 +47,9 @@ bool parseMemoryMapLine(const std::string& line, MemoryMapping& module) {
 
   return true;
 }
+
+#undef XSTR
+#undef STR
 
 std::string getProcFolderPath(pid_t pid, const char* path) {
   return fmt::format("/proc/{}/{}", pid, path);
