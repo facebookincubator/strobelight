@@ -109,6 +109,18 @@ get_required_libs() {
             elfutils-libelf \
             elfutils-libelf-devel\
             fmt-devel
+    elif [ -x "$(command -v apt)" ]; then
+        sudo apt install -y --no-install-recommends \
+          curl \
+          ca-certificates \
+          libelf-dev \
+          libfmt-dev \
+          libbpf-dev \
+          build-essential \
+          clang \
+          cmake \
+          linux-tools-common \
+          linux-tools-$(uname -r)
     else
         sudo yum install -y \
             git \
